@@ -1,8 +1,11 @@
 from fastapi import FastAPI, HTTPException
 from pwdlib import PasswordHash
 from sqlmodel import SQLModel, Field, Session, create_engine, select
+from datetime import datetime, timedelta, timezone
+import jwt
 
 password_hash = PasswordHash.recommended()
+SECRET_KEY = "dev-secret-change-me"   # moves to an environment variable on Day 8
 
 class User(SQLModel, table=True):
     user_id : int | None = Field(default = None, primary_key=True)
@@ -48,5 +51,14 @@ def login(creds : Credentials):
         if user is None or not password_hash.verify(creds.password, user.password_hash):
             raise HTTPException(status_code=401, detail="Invalid username or password")
         
-        return {"message": "Login successfull"}
+        token = jwt.encode(
+            {
+                "sub":user.username,
+                "exp":datetime.now(timezone.utc) + timedelta(minutes=30)
+            },
+            SECRET_KEY,
+            algorithm="HS256",
+        )
+        
+        return {"access_token": token, "token_type": "bearer"}
                
